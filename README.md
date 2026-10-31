@@ -15,8 +15,8 @@ started on first use, answers every keystroke over JSON-RPC.
 ## Requirements
 
 - Omarchy Quattro 4.0.3 or later (Hyprland session)
-- `numr-cli` 0.9 or later in `PATH`. On Arch it comes from the AUR:
-  `yay -S numr-bin` (or `numr`)
+- `numr-cli` 0.9 or later in `PATH`. On Arch it is the AUR package
+  `numr-bin` (or `numr` to build from source)
 - `wl-copy` from `wl-clipboard`, which Omarchy installs by default
 
 No sudo or pkexec is required. The plugin never touches system files.
