@@ -109,7 +109,11 @@ the document: it sees every variable and can continue the previous result
 - Reads `~/.config/numr/config.toml`, numr's rate cache
   `~/.config/numr/rates.json`, and the notes file.
 - Appends to the notes file only when you press `Shift+Enter`, creating
-  `~/.config/numr` if numr has never run.
+  `~/.config/numr` if numr has never run. A directory or file it has to create
+  is private (`0700` / `0600`); existing ones keep their permissions.
+- Hands results to `wl-copy` and saved lines to the notes writer over stdin,
+  never on a command line, so other local accounts cannot read your
+  calculations from the process list.
 - Runs `numr-cli`, `wl-copy`, and `omarchy-launch-or-focus-tui numr` from your
   session. Network access happens only inside `numr-cli`, and only to fetch
   exchange rates: when you press `Ctrl+R`, or when the calculator opens and the

@@ -127,13 +127,18 @@ Item {
     root.result = sent.expr.trim() ? (values[count] || null) : null
   }
 
+  // Results and saved lines travel over stdin, never on a command line: process
+  // arguments are readable by every local account, private calculations are not.
   function copyResult(bare, andClose) {
     var text = Model.copyText(root.result, bare)
     if (!text) {
       root.flash("Nothing to copy yet")
       return
     }
-    Quickshell.execDetached(["wl-copy", "--", text])
+    if (copyProc.running) return
+    copyProc.payload = text
+    copyProc.stdinEnabled = true
+    copyProc.running = true
     if (andClose) root.dismiss()
     else root.flash("Copied " + text)
   }
@@ -143,12 +148,15 @@ Item {
     if (clip) root.setExpr(root.expr + clip)
   }
 
-  // Appends the typed line to the notes file as-is. A plain shell append keeps
-  // the write atomic enough for a line and creates ~/.config/numr on a machine
-  // where numr has never run; the FileView watcher picks the change up.
+  // Appends the typed line to the notes file as-is, fed over stdin. A plain
+  // shell append keeps the write atomic enough for a line. umask 077 makes a
+  // directory or file that has to be created private (0700 / 0600); existing
+  // ones keep their permissions. The FileView watcher picks the change up.
   function appendToNotes() {
     if (!root.expr.trim() || appendProc.running) return
-    appendProc.command = ["sh", "-c", 'mkdir -p -- "$(dirname -- "$1")" && printf "%s\\n" "$2" >> "$1"', "numr-notes", root.notesFile, root.expr]
+    appendProc.payload = root.expr + "\n"
+    appendProc.command = ["sh", "-c", 'umask 077; mkdir -p -- "$(dirname -- "$1")" && cat >> "$1"', "numr-notes", root.notesFile]
+    appendProc.stdinEnabled = true
     appendProc.running = true
     root.setExpr("")
   }
@@ -305,7 +313,24 @@ Item {
   }
 
   Process {
+    id: copyProc
+    property string payload: ""
+    command: ["wl-copy"]
+    onStarted: {
+      write(payload)
+      payload = ""
+      stdinEnabled = false
+    }
+  }
+
+  Process {
     id: appendProc
+    property string payload: ""
+    onStarted: {
+      write(payload)
+      payload = ""
+      stdinEnabled = false
+    }
     onExited: function(exitCode) {
       root.flash(exitCode === 0 ? "Kept in " + Model.fileLabel(root.notesFile) : "Could not write " + root.notesFile)
       notesView.reload()
