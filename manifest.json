@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.nasedkinpv.numr",
+  "name": "numr",
+  "version": "1.0.0",
+  "author": "Ben Nasedkin",
+  "license": "MIT",
+  "description": "Spotlight-style calculator powered by numr: type an expression, read the answer, copy it with Enter or keep it as a line in your numr notes.",
+  "preview": "preview.png",
+  "kinds": ["overlay", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "Overlay.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "numr",
+    "description": "Open the numr calculator",
+    "category": "Productivity",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
