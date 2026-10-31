@@ -1,21 +1,22 @@
 # numr for Omarchy
 
 A Spotlight-style calculator for the Omarchy Quattro shell, powered by
-[numr](https://github.com/nasedkinpv/numr). Press a key, type
-`20% of 150 + $30 in eur`, read the answer. Enter copies it. Shift+Enter keeps
-the line in your numr notes, the same `default.numr` document the `numr` TUI
-opens, so variables you define there work here and vice versa.
+[numr](https://github.com/nasedkinpv/numr).
 
-![numr overlay: an expression, its result, and the last lines of the notes file](preview.png)
+![The numr overlay on the Omarchy desktop: the expression "20% of 150 + $30 in eur" with its result, €53.74](docs/hero.png)
 
-Everything runs inside the long-lived `omarchy-shell` process. There is no
-second Quickshell instance; one `numr-cli --server` is started on first use and
-answers every keystroke over JSON-RPC.
+Press a key, type `20% of 150 + $30 in eur`, read the answer. Enter copies it
+and closes the card. Shift+Enter keeps the line in your numr notes, the same
+`default.numr` document the `numr` TUI opens, so variables you define there
+work here and vice versa. Everything runs inside the long-lived `omarchy-shell`
+process: there is no second Quickshell instance, and one `numr-cli --server`,
+started on first use, answers every keystroke over JSON-RPC.
 
 ## Requirements
 
 - Omarchy Quattro 4.0.3 or later (Hyprland session)
-- `numr-cli` 0.9 or later in `PATH`. On Arch: `yay -S numr-bin` (or `numr`)
+- `numr-cli` 0.9 or later in `PATH`. On Arch it comes from the AUR:
+  `yay -S numr-bin` (or `numr`)
 - `wl-copy` from `wl-clipboard`, which Omarchy installs by default
 
 No sudo or pkexec is required. The plugin never touches system files.
@@ -26,14 +27,23 @@ No sudo or pkexec is required. The plugin never touches system files.
 omarchy plugin add https://github.com/nasedkinpv/omarchy-numr.git --enable
 ```
 
-`--enable` puts a small 󰃬 button in the bar's right section. The calculator
-itself is an overlay you can open from anywhere:
+`--enable` puts a small 󰃬 button in the bar's right section:
+
+![The right section of the Omarchy bar, with the numr calculator button between the keyboard layout and battery widgets](docs/bar.png)
+
+The calculator itself is an overlay you can open from anywhere:
 
 ```bash
 omarchy-shell shell toggle io.github.nasedkinpv.numr '{}'
 ```
 
-### Keybinding
+The summon payload accepts an expression to prefill:
+
+```bash
+omarchy-shell shell summon io.github.nasedkinpv.numr '{"expr":"1 BTC in usd"}'
+```
+
+## Keybinding
 
 Omarchy binds the stock `omacalc` calculator to `SUPER + SHIFT + Q` and the
 `XF86Calculator` key. To hand those keys to numr, add to
@@ -49,7 +59,7 @@ o.bind("XF86Calculator", "numr calculator", "omarchy-shell shell toggle io.githu
 Any other chord works the same way; the plugin does not edit your Hyprland
 configuration for you.
 
-### Omarchy menu entry
+## Omarchy menu entry
 
 To reach it from the Omarchy menu (`SUPER + SPACE`, type `calc`, Enter), add
 a row to `~/.config/omarchy/extensions/omarchy-menu.jsonc`:
@@ -65,14 +75,6 @@ results. Plugins that show answers inside the menu ship a modified copy of
 untouched and gives the calculator its own key instead, the way Spotlight has
 its own.
 
-### Prefill from a script
-
-The summon payload accepts an expression:
-
-```bash
-omarchy-shell shell summon io.github.nasedkinpv.numr '{"expr":"1 BTC in usd"}'
-```
-
 ## Keys
 
 | Key | Action |
@@ -82,7 +84,7 @@ omarchy-shell shell summon io.github.nasedkinpv.numr '{"expr":"1 BTC in usd"}'
 | `Ctrl+C` / `Ctrl+Insert` | Copy the bare number (`55.20`) and stay open |
 | `Shift+Enter` | Append the line to your numr notes and clear the input |
 | `Ctrl+O` | Open the notes in the `numr` TUI |
-| `Ctrl+R` | Refresh exchange rates (the only time numr goes online) |
+| `Ctrl+R` | Refresh exchange rates now |
 | `Ctrl+V` / `Shift+Insert` | Paste the clipboard into the input |
 | `Backspace`, `Ctrl+Backspace`, `Ctrl+U` | Delete a character, a word, the line |
 | `Esc` | Clear the input, then close |
@@ -91,22 +93,29 @@ Click a line in the notes peek to load it into the input.
 
 ## Notes
 
+![The numr overlay with its Notes section: a four-line Lisbon trip budget from default.numr with each line's value, and the input "_ / 2 in eur" continuing the last line to €429.88](docs/notes.png)
+
 The notes file is `~/.config/numr/default.numr`, or whatever
 `[files] default_path` in `~/.config/numr/config.toml` points at, so the
 overlay and the `numr` TUI always share one document. The overlay shows the
 last six non-blank lines with their values. Every evaluation replays the whole
 document first, so a line typed in the overlay behaves like a new last line of
 the document: it sees every variable and can continue the previous result
-(`+ 10%`). Display precision follows numr's `[preferences] decimals`.
+(`+ 10%`, or `_ / 2 in eur` as above). Display precision follows numr's
+`[preferences] decimals`.
 
 ## What it reads and writes
 
-- Reads `~/.config/numr/config.toml` and the notes file.
+- Reads `~/.config/numr/config.toml`, numr's rate cache
+  `~/.config/numr/rates.json`, and the notes file.
 - Appends to the notes file only when you press `Shift+Enter`, creating
   `~/.config/numr` if numr has never run.
-- Runs `numr-cli --server`, `wl-copy`, and `omarchy-launch-or-focus-tui numr`
-  from your session. Network access happens only inside `numr-cli` when you
-  press `Ctrl+R`.
+- Runs `numr-cli`, `wl-copy`, and `omarchy-launch-or-focus-tui numr` from your
+  session. Network access happens only inside `numr-cli`, and only to fetch
+  exchange rates: when you press `Ctrl+R`, or when the calculator opens and the
+  cache is older than an hour (numr's own expiry, after which it would silently
+  fall back to built-in default rates). A failed refresh is retried no sooner
+  than ten minutes later.
 - Writes nothing else. Your `shell.json`, Hyprland and menu files are left
   alone.
 
@@ -128,9 +137,9 @@ node --test test/
 ```
 
 The pure logic lives in `NumrModel.js`, which both the overlay and the Node
-test load. After editing an installed copy, `omarchy-shell shell rescanPlugins`
-hot-reloads it; if a previous load failed, `omarchy-restart-shell` clears the
-cached component.
+test load. The overlay is kept loaded between summons, so after editing an
+installed copy run `omarchy-restart-shell`; a rescan alone keeps the old
+instance.
 
 ## License
 
