@@ -149,13 +149,16 @@ Item {
   }
 
   // Appends the typed line to the notes file as-is, fed over stdin. A plain
-  // shell append keeps the write atomic enough for a line. umask 077 makes a
-  // directory or file that has to be created private (0700 / 0600); existing
-  // ones keep their permissions. The FileView watcher picks the change up.
+  // shell append keeps the write atomic enough for a line. The file holds
+  // private calculations: umask 077 creates a missing directory or file as
+  // 0700 / 0600, and an existing file is made 0600 before the append (an
+  // older build, or the numr TUI, may have left it world-readable). If it
+  // cannot be made private the write is refused. The FileView watcher picks
+  // the change up.
   function appendToNotes() {
     if (!root.expr.trim() || appendProc.running) return
     appendProc.payload = root.expr + "\n"
-    appendProc.command = ["sh", "-c", 'umask 077; mkdir -p -- "$(dirname -- "$1")" && cat >> "$1"', "numr-notes", root.notesFile]
+    appendProc.command = ["sh", "-c", 'umask 077; mkdir -p -- "$(dirname -- "$1")" && { [ ! -e "$1" ] || chmod 600 -- "$1"; } && cat >> "$1"', "numr-notes", root.notesFile]
     appendProc.stdinEnabled = true
     appendProc.running = true
     root.setExpr("")
