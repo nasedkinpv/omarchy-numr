@@ -46,8 +46,9 @@ Item {
   readonly property color scrim: Commons.Color.menu.scrim
   readonly property string fontFamily: Style.font.menuFamily
   readonly property int cardWidth: Math.min(Style.space(620), panel.width - Style.gapsOut * 2)
-  readonly property bool hasResult: !!root.result && root.result.type !== "empty"
-  readonly property bool resultIsError: !!root.result && root.result.type === "error"
+  readonly property int resultLineHeight: Math.round(Style.font.displayLarge * 1.25)
+  readonly property bool hasResult: Model.showsResult(root.result)
+  readonly property bool resultIsError: root.hasResult && root.result.type === "error"
 
   function open(payloadJson) {
     var payload = Model.parsePayload(payloadJson)
@@ -321,54 +322,41 @@ Item {
         anchors.topMargin: card.contentTopInset
         anchors.leftMargin: card.contentLeftInset
         anchors.rightMargin: card.contentRightInset
-        spacing: Style.spacing.md
+        spacing: Style.spacing.sm
 
-        Row {
+        // The input line: just the text and a caret, no chrome.
+        Item {
           width: parent.width
-          spacing: Style.spacing.md
+          height: inputText.implicitHeight
 
           Text {
-            id: glyph
+            id: inputText
             textFormat: Text.PlainText
-            text: "󰃬"
+            text: root.expr || "Calculate…"
+            opacity: root.expr ? 1 : 0.45
             color: root.foreground
-            opacity: 0.6
             font.family: root.fontFamily
             font.pixelSize: Style.font.heading
-            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - caret.width - Style.space(4)
+            elide: Text.ElideLeft
           }
 
-          Item {
-            width: parent.width - glyph.width - parent.spacing
-            height: inputText.implicitHeight
-
-            Text {
-              id: inputText
-              textFormat: Text.PlainText
-              text: root.expr || "Calculate…"
-              opacity: root.expr ? 1 : 0.5
-              color: root.foreground
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.heading
-              width: parent.width - caret.width - Style.space(4)
-              elide: Text.ElideLeft
-            }
-
-            Rectangle {
-              id: caret
-              width: Math.max(1, Style.space(2))
-              height: inputText.font.pixelSize
-              x: root.expr ? Math.min(inputText.contentWidth, inputText.width) + Style.space(2) : 0
-              anchors.verticalCenter: parent.verticalCenter
-              color: root.accent
-              visible: root.caretOn
-            }
+          Rectangle {
+            id: caret
+            width: Math.max(1, Style.space(2))
+            height: inputText.font.pixelSize
+            x: root.expr ? Math.min(inputText.contentWidth, inputText.width) + Style.space(2) : 0
+            anchors.verticalCenter: parent.verticalCenter
+            color: root.accent
+            visible: root.caretOn
           }
         }
 
+        // The answer, right-aligned and large. Keeps its line while typing so
+        // the card does not jump between results.
         Item {
           width: parent.width
-          height: root.hasResult ? resultText.implicitHeight : hintText.implicitHeight
+          height: root.expr ? root.resultLineHeight : hintText.implicitHeight
 
           Text {
             id: resultText
@@ -376,10 +364,11 @@ Item {
             textFormat: Text.PlainText
             text: Model.resultText(root.result)
             width: parent.width
+            anchors.verticalCenter: parent.verticalCenter
             horizontalAlignment: Text.AlignRight
             elide: Text.ElideLeft
             color: root.resultIsError ? root.foreground : root.accent
-            opacity: root.resultIsError ? 0.55 : 1
+            opacity: root.resultIsError ? 0.5 : 1
             font.family: root.fontFamily
             font.pixelSize: root.resultIsError ? Style.font.subtitle : Style.font.displayLarge
             font.bold: !root.resultIsError
@@ -387,11 +376,11 @@ Item {
 
           Text {
             id: hintText
-            visible: !root.hasResult
+            visible: !root.expr
             textFormat: Text.PlainText
             text: root.serverBroken
               ? "numr-cli is not available. Install numr (AUR: numr-bin) and reopen."
-              : "20% of 150   ·   5 km in miles   ·   $100 in eur   ·   2 h + 30 min"
+              : "20% of 150  ·  5 km in miles  ·  $100 in eur  ·  2 h + 30 min"
             width: parent.width
             elide: Text.ElideRight
             color: root.serverBroken ? Commons.Color.urgent : root.foreground
@@ -401,6 +390,7 @@ Item {
           }
         }
 
+        // The last lines of the notes document with their values.
         Column {
           width: parent.width
           spacing: Style.spacing.xs
@@ -410,7 +400,7 @@ Item {
             width: parent.width
             height: 1
             color: root.border
-            opacity: 0.3
+            opacity: 0.25
           }
 
           Item {
@@ -420,15 +410,13 @@ Item {
             Text {
               id: notesHeader
               textFormat: Text.PlainText
-              text: "NOTES"
+              text: "Notes"
               anchors.left: parent.left
               anchors.bottom: parent.bottom
               color: root.foreground
-              opacity: 0.5
+              opacity: 0.45
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
-              font.bold: true
-              font.letterSpacing: 1.2
             }
 
             Text {
@@ -437,7 +425,7 @@ Item {
               anchors.right: parent.right
               anchors.bottom: parent.bottom
               color: root.foreground
-              opacity: 0.4
+              opacity: 0.35
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }
@@ -488,13 +476,14 @@ Item {
           }
         }
 
+        // One quiet line of guidance, replaced by a short status after an action.
         Text {
           width: parent.width
           textFormat: Text.PlainText
-          text: root.status || "⏎ copy    ⇧⏎ keep as note    ^C copy number    ^O open notes    ^R rates    esc"
+          text: root.status || "Enter copy  ·  Shift+Enter keep as note  ·  Ctrl+O notes  ·  Esc"
           elide: Text.ElideRight
           color: root.status ? root.accent : root.foreground
-          opacity: root.status ? 0.95 : 0.4
+          opacity: root.status ? 0.95 : 0.35
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
         }

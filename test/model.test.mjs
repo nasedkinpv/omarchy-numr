@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const source = readFileSync(new URL("../NumrModel.js", import.meta.url), "utf8")
-const M = new Function(source + "\nreturn { buildRequest, ratesRequest, parseResponse, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload }")()
+const M = new Function(source + "\nreturn { showsResult, buildRequest, ratesRequest, parseResponse, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload }")()
 
 test("buildRequest clears, then replays notes plus the typed line under one id", () => {
   const frame = M.buildRequest(7, ["rent = $1200", "rent * 12"], "+ 10%")
@@ -46,6 +46,14 @@ test("notesRows keeps the last non-blank lines, hides errors, flags comments", (
     { text: "rent * 12", result: "$14400.00", comment: false }
   ])
   assert.deepEqual(M.notesRows(lines, results, 9)[0], { text: "# budget", result: "", comment: true })
+})
+
+test("showsResult hides half-typed lines but keeps real errors", () => {
+  assert.equal(M.showsResult(null), false)
+  assert.equal(M.showsResult({ type: "empty", display: "" }), false)
+  assert.equal(M.showsResult({ type: "error", message: "could not understand line", display: "Error: could not understand line" }), false)
+  assert.equal(M.showsResult({ type: "error", message: "division by zero", display: "Error: division by zero" }), true)
+  assert.equal(M.showsResult({ type: "number", value: "4", display: "4" }), true)
 })
 
 test("resultText and copyText follow the value type", () => {

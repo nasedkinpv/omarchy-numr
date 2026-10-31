@@ -51,12 +51,19 @@ configuration for you.
 
 ### Omarchy menu entry
 
-To reach it from the Omarchy menu (`SUPER + SPACE`, then type `numr`), add a
-row to `~/.config/omarchy/extensions/omarchy-menu.jsonc`:
+To reach it from the Omarchy menu (`SUPER + SPACE`, type `calc`, Enter), add
+a row to `~/.config/omarchy/extensions/omarchy-menu.jsonc`:
 
 ```jsonc
-"numr": {"icon":"󰃬","label":"numr","description":"Spotlight-style calculator","action":"omarchy-shell shell toggle io.github.nasedkinpv.numr '{}'"},
+"numr": {"icon":"󰃬","label":"Calculator","description":"numr · units, currencies, variables","action":"omarchy-shell shell toggle io.github.nasedkinpv.numr '{}'"},
 ```
+
+The stock menu cannot evaluate what you type into its own search field: its
+rows come from JSONC and a fixed set of providers, with no hook for live
+results. Plugins that show answers inside the menu ship a modified copy of
+`Menu.qml`, which stops tracking Omarchy updates. This plugin keeps the menu
+untouched and gives the calculator its own key instead, the way Spotlight has
+its own.
 
 ### Prefill from a script
 

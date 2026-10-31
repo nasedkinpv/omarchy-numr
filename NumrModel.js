@@ -74,6 +74,14 @@ function notesRows(lines, results, limit) {
   return rows
 }
 
+// numr reports a half-typed line as "could not understand line"; that is not
+// news while someone is still typing, so the result area stays quiet.
+function showsResult(value) {
+  if (!value || value.type === "empty") return false
+  if (value.type === "error") return String(value.message || "") !== "could not understand line"
+  return true
+}
+
 function resultText(value) {
   if (!value) return ""
   if (value.type === "error") return value.message || value.display || "Error"
