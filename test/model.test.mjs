@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const source = readFileSync(new URL("../NumrModel.js", import.meta.url), "utf8")
-const M = new Function(source + "\nreturn { showsResult, buildRequest, ratesRequest, parseResponse, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload }")()
+const M = new Function(source + "\nreturn { ratesStale, showsResult, buildRequest, ratesRequest, parseResponse, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload }")()
 
 test("buildRequest clears, then replays notes plus the typed line under one id", () => {
   const frame = M.buildRequest(7, ["rent = $1200", "rent * 12"], "+ 10%")
@@ -73,6 +73,15 @@ test("notesPath honours numr's default_path and falls back to default.numr", () 
   assert.equal(M.notesPath('[files]\ndefault_path = "~/Documents/money.numr"\n', "/x", "/home/fs"), "/home/fs/Documents/money.numr")
   assert.equal(M.notesPath('default_path = "/srv/notes.numr"', "/x", "/home/fs"), "/srv/notes.numr")
   assert.equal(M.fileLabel("/home/fs/.config/numr/default.numr"), "default.numr")
+})
+
+test("ratesStale follows numr's one-hour cache rule", () => {
+  const now = 1_800_000_000
+  assert.equal(M.ratesStale(JSON.stringify({ timestamp: now - 10, rates: {} }), now), false)
+  assert.equal(M.ratesStale(JSON.stringify({ timestamp: now - 3600, rates: {} }), now), true)
+  assert.equal(M.ratesStale(JSON.stringify({ timestamp: now + 60, rates: {} }), now), true)
+  assert.equal(M.ratesStale("", now), true)
+  assert.equal(M.ratesStale("{not json", now), true)
 })
 
 test("parsePayload tolerates garbage", () => {

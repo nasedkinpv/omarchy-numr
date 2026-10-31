@@ -25,6 +25,19 @@ function ratesRequest() {
   return JSON.stringify(request("reload_rates", undefined, "rates")) + "\n"
 }
 
+// numr's own rule: a cache older than an hour is expired and the server
+// silently falls back to built-in default rates, so a stale cache is refreshed
+// when the calculator opens. A missing or unreadable cache counts as stale.
+function ratesStale(cacheJson, nowSeconds) {
+  try {
+    var cache = JSON.parse(cacheJson || "")
+    var stamp = Number(cache && cache.timestamp)
+    return !(stamp > 0) || stamp > nowSeconds || nowSeconds - stamp >= 3600
+  } catch (error) {
+    return true
+  }
+}
+
 // A response frame is one object or a batch array; only calls carry an id and
 // each frame we send holds exactly one call.
 function parseResponse(line) {

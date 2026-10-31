@@ -35,6 +35,9 @@ Item {
   property bool serverBroken: false
   property string status: ""
   property bool caretOn: true
+  property string ratesCache: ""
+  property real lastRatesAttempt: 0
+  property bool ratesManual: false
 
   // Shares the [menu] surface tokens, like the emoji and clipboard overlays,
   // so a theme that styles the menu styles this card too.
@@ -59,6 +62,7 @@ Item {
     root.caretOn = true
     notesView.reload()
     root.ensureServer()
+    root.refreshRatesIfStale()
     root.evaluate()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
@@ -111,13 +115,7 @@ Item {
 
   function handleResponse(data) {
     var reply = Model.parseResponse(data)
-    if (!reply) return
-    if (reply.id === "rates") {
-      root.flash(reply.error ? "Rates: " + reply.error : "Rates updated")
-      root.sendEval()
-      return
-    }
-    if (!root.inflight || reply.id !== root.inflight.id) return
+    if (!reply || !root.inflight || reply.id !== root.inflight.id) return
     var sent = root.inflight
     if (reply.error) {
       root.result = { type: "error", display: reply.error, message: reply.error }
@@ -160,9 +158,37 @@ Item {
     root.dismiss()
   }
 
+  // Rates are fetched by a separate short-lived numr-cli so the live server
+  // keeps answering keystrokes while the network call runs. numr persists the
+  // result to its cache; the live server reads that cache only at startup, and
+  // since every keystroke replays the full state anyway, restarting it is free.
   function reloadRates() {
+    root.ratesManual = true
     root.flash("Updating rates…")
-    root.send(Model.ratesRequest())
+    root.startRatesRefresh()
+  }
+
+  function refreshRatesIfStale() {
+    var now = Date.now() / 1000
+    if (!Model.ratesStale(root.ratesCache, now)) return
+    if (now - root.lastRatesAttempt < 600) return
+    root.startRatesRefresh()
+  }
+
+  function startRatesRefresh() {
+    if (ratesProc.running) return
+    root.lastRatesAttempt = Date.now() / 1000
+    ratesProc.running = true
+  }
+
+  function ratesDone(output) {
+    var reply = Model.parseResponse(output)
+    var ok = !!reply && !reply.error
+    if (root.ratesManual) root.flash(ok ? "Rates updated" : "Rates: " + (reply ? reply.error : "numr-cli failed"))
+    root.ratesManual = false
+    if (!ok) return
+    server.running = false
+    root.evaluate()
   }
 
   function flash(message) {
@@ -227,6 +253,16 @@ Item {
   }
 
   FileView {
+    id: ratesView
+    path: root.configDir + "/numr/rates.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.ratesCache = text()
+    onLoadFailed: root.ratesCache = ""
+    onFileChanged: reload()
+  }
+
+  FileView {
     id: notesView
     path: root.notesFile
     watchChanges: true
@@ -256,6 +292,15 @@ Item {
       // or a stale process, which the next keystroke restarts.
       if (!root.serverStarted) root.serverBroken = true
       root.serverStarted = false
+    }
+  }
+
+  Process {
+    id: ratesProc
+    command: ["sh", "-c", 'printf "%s\\n" "$1" | numr-cli --server', "numr-rates", Model.ratesRequest().trim()]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.ratesDone(text)
     }
   }
 
