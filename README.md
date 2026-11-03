@@ -15,8 +15,8 @@ started on first use, answers every keystroke over JSON-RPC.
 ## Requirements
 
 - Omarchy Quattro 4.0.3 or later (Hyprland session)
-- `numr-cli` 0.9 or later in `PATH`. On Arch it is the AUR package
-  `numr-bin` (or `numr` to build from source)
+- `numr-cli` 0.9 or later in `PATH`. If it is missing, the overlay offers to
+  install the AUR package `numr-bin` through Omarchy's own installer on Enter
 - `wl-copy` from `wl-clipboard`, which Omarchy installs by default
 
 No sudo or pkexec is required. The plugin never touches system files.
@@ -27,9 +27,7 @@ No sudo or pkexec is required. The plugin never touches system files.
 omarchy plugin add https://github.com/nasedkinpv/omarchy-numr.git --enable
 ```
 
-`--enable` puts a small 󰃬 button in the bar's right section:
-
-![The right section of the Omarchy bar, with the numr calculator button between the keyboard layout and battery widgets](docs/bar.png)
+`--enable` loads the overlay into the shell; nothing is added to the bar.
 
 The calculator itself is an overlay you can open from anywhere:
 
@@ -116,11 +114,13 @@ the document: it sees every variable and can continue the previous result
   never on a command line, so other local accounts cannot read your
   calculations from the process list.
 - Runs `numr-cli`, `wl-copy`, and `omarchy-launch-or-focus-tui numr` from your
-  session. Network access happens only inside `numr-cli`, and only to fetch
-  exchange rates: when you press `Ctrl+R`, or when the calculator opens and the
-  cache is older than an hour (numr's own expiry, after which it would silently
-  fall back to built-in default rates). A failed refresh is retried no sooner
-  than ten minutes later.
+  session. When `numr-cli` is missing, Enter opens Omarchy's floating install
+  terminal for `numr-bin`; nothing is installed without that keypress. Network
+  access happens only inside `numr-cli`, and only to fetch exchange rates: when
+  you press `Ctrl+R`, or when the calculator opens and the cache is older than
+  an hour (numr's own expiry, after which it would silently fall back to built-
+  in default rates). A failed refresh is retried no sooner than ten minutes
+  later.
 - Writes nothing else. Your `shell.json`, Hyprland and menu files are left
   alone.
 
@@ -137,14 +137,15 @@ and stays where it is.
 
 ```bash
 omarchy plugin validate .
-qmllint -I "$OMARCHY_PATH/shell" Overlay.qml BarWidget.qml
+qmllint -I "$OMARCHY_PATH/shell" Overlay.qml
 node --test test/
 ```
 
 The pure logic lives in `NumrModel.js`, which both the overlay and the Node
 test load. The overlay is kept loaded between summons, so after editing an
 installed copy run `omarchy-restart-shell`; a rescan alone keeps the old
-instance.
+instance. `scripts/capture-media.sh` regenerates the README screenshots
+and `preview.png` on Hyprland.
 
 ## License
 

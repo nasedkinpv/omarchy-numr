@@ -164,6 +164,14 @@ Item {
     root.setExpr("")
   }
 
+  // Omarchy's own installer flow: a floating terminal with the logo, yay asks
+  // for the password there, "Done" at the end. Nothing runs without the
+  // keypress, and the next open re-checks the binary.
+  function installNumr() {
+    Util.execArgv(["omarchy-launch-floating-terminal-with-presentation", "omarchy-pkg-aur-add numr-bin"])
+    root.dismiss()
+  }
+
   function openNotes() {
     Util.execArgv(["omarchy-launch-or-focus-tui", "numr", root.notesFile])
     root.dismiss()
@@ -214,7 +222,8 @@ Item {
       if (root.expr) root.setExpr("")
       else root.dismiss()
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-      if (shift) root.appendToNotes()
+      if (root.serverBroken) root.installNumr()
+      else if (shift) root.appendToNotes()
       else root.copyResult(false, true)
     } else if (ctrl && event.key === Qt.Key_O) {
       root.openNotes()
@@ -395,7 +404,7 @@ Item {
         anchors.topMargin: card.contentTopInset
         anchors.leftMargin: card.contentLeftInset
         anchors.rightMargin: card.contentRightInset
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.lg
 
         // The input line: just the text and a caret, no chrome.
         Item {
@@ -429,7 +438,8 @@ Item {
         // the card does not jump between results.
         Item {
           width: parent.width
-          height: root.expr ? root.resultLineHeight : hintText.implicitHeight
+          height: root.resultLineHeight
+          visible: root.expr !== ""
 
           Text {
             id: resultText
@@ -445,21 +455,6 @@ Item {
             font.family: root.fontFamily
             font.pixelSize: root.resultIsError ? Style.font.subtitle : Style.font.displayLarge
             font.bold: !root.resultIsError
-          }
-
-          Text {
-            id: hintText
-            visible: !root.expr
-            textFormat: Text.PlainText
-            text: root.serverBroken
-              ? "numr-cli is not available. Install numr (AUR: numr-bin) and reopen."
-              : "20% of 150  ·  5 km in miles  ·  $100 in eur  ·  2 h + 30 min"
-            width: parent.width
-            elide: Text.ElideRight
-            color: root.serverBroken ? Commons.Color.urgent : root.foreground
-            opacity: root.serverBroken ? 0.9 : 0.4
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
           }
         }
 
@@ -488,17 +483,6 @@ Item {
               anchors.bottom: parent.bottom
               color: root.foreground
               opacity: 0.45
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-            }
-
-            Text {
-              textFormat: Text.PlainText
-              text: Model.fileLabel(root.notesFile) + " · " + root.notesLines.length + (root.notesLines.length === 1 ? " line" : " lines")
-              anchors.right: parent.right
-              anchors.bottom: parent.bottom
-              color: root.foreground
-              opacity: 0.35
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }
@@ -549,14 +533,18 @@ Item {
           }
         }
 
-        // One quiet line of guidance, replaced by a short status after an action.
+        // One quiet line of key hints, replaced by a short status after an
+        // action, or by the install prompt when numr-cli is missing.
         Text {
           width: parent.width
+          topPadding: Style.spacing.md
           textFormat: Text.PlainText
-          text: root.status || "Enter copy  ·  Shift+Enter keep as note  ·  Ctrl+O notes  ·  Esc"
+          text: root.status
+            || (root.serverBroken ? "numr is not installed yet  ·  Enter installs it with Omarchy (AUR numr-bin)"
+                                  : "Enter copy  ·  Shift+Enter keep as note  ·  Ctrl+O notes  ·  Esc")
           elide: Text.ElideRight
-          color: root.status ? root.accent : root.foreground
-          opacity: root.status ? 0.95 : 0.35
+          color: root.status ? root.accent : (root.serverBroken ? Commons.Color.urgent : root.foreground)
+          opacity: root.status ? 0.95 : (root.serverBroken ? 0.9 : 0.35)
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
         }
