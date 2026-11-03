@@ -14,19 +14,35 @@ function request(method, params, id) {
 // document would in the numr TUI.
 // ponytail: the whole notes file is replayed on every keystroke; window it to
 // the last few thousand lines if someone keeps a novel in default.numr.
-// The tokenize call comes last so the notes' variables are already bound when
-// the typed line is tokenized. numr-cli before 0.9.2 answers it with "Method
-// not found", which the overlay treats as "no highlighting".
-function buildRequest(id, notesLines, expr) {
-  return JSON.stringify([
+// The tokenize calls come after eval_lines so the notes' variables are already
+// bound: one for the typed line, one per shown notes row. numr-cli before
+// 0.9.2 answers them with "Method not found", which means "no highlighting".
+function buildRequest(id, notesLines, expr, notesLimit) {
+  var calls = [
     request("clear"),
     request("eval_lines", { lines: notesLines.concat([expr]) }, id),
     request("tokenize", { expr: expr }, tokensId(id))
-  ]) + "\n"
+  ]
+  var shown = notesRowIndexes(notesLines, notesLimit || 0)
+  for (var i = 0; i < shown.length; i++) {
+    calls.push(request("tokenize", { expr: notesLines[shown[i]] }, tokensId(id, shown[i])))
+  }
+  return JSON.stringify(calls) + "\n"
 }
 
-function tokensId(id) {
-  return "tokens:" + id
+// "tokens:<request id>" for the typed line, "tokens:<request id>:<line>" for a
+// notes row.
+function tokensId(id, line) {
+  return "tokens:" + id + (line === undefined ? "" : ":" + line)
+}
+
+// Indexes of the last `limit` non-blank lines, in document order.
+function notesRowIndexes(lines, limit) {
+  var indexes = []
+  for (var i = lines.length - 1; i >= 0 && indexes.length < limit; i--) {
+    if (lines[i].trim()) indexes.unshift(i)
+  }
+  return indexes
 }
 
 function ratesRequest() {
@@ -89,13 +105,23 @@ function isComment(line) {
 
 // The notes peek: the last `limit` non-blank lines paired with their values.
 // Errors show no value; a prose note is a note, not a mistake.
-function notesRows(lines, results, limit) {
+// `tokens` maps a line index to its syntax tokens; rows with tokens carry
+// `markup` for styled rendering, comments stay plain.
+function notesRows(lines, results, limit, tokens, lightCard) {
+  var indexes = notesRowIndexes(lines, limit)
   var rows = []
-  for (var i = lines.length - 1; i >= 0 && rows.length < limit; i--) {
-    if (!lines[i].trim()) continue
+  for (var n = 0; n < indexes.length; n++) {
+    var i = indexes[n]
     var value = results[i]
     var shown = value && value.type !== "error" && value.type !== "empty" ? value.display : ""
-    rows.unshift({ text: lines[i], result: shown, comment: isComment(lines[i]) })
+    var comment = isComment(lines[i])
+    var list = tokens && tokens[i]
+    rows.push({
+      text: lines[i],
+      result: shown,
+      comment: comment,
+      markup: !comment && list && list.length ? highlightMarkup(list, lightCard) : ""
+    })
   }
   return rows
 }

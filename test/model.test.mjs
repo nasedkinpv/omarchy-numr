@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const source = readFileSync(new URL("../NumrModel.js", import.meta.url), "utf8")
-const M = new Function(source + "\nreturn { ratesStale, showsResult, buildRequest, tokensId, ratesRequest, parseResponse, parseResponses, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload, highlightMarkup }")()
+const M = new Function(source + "\nreturn { ratesStale, showsResult, buildRequest, tokensId, notesRowIndexes, ratesRequest, parseResponse, parseResponses, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload, highlightMarkup }")()
 
 test("buildRequest clears, then replays notes plus the typed line under one id", () => {
   const frame = M.buildRequest(7, ["rent = $1200", "rent * 12"], "+ 10%")
@@ -12,6 +12,12 @@ test("buildRequest clears, then replays notes plus the typed line under one id",
   assert.deepEqual(batch[0], { jsonrpc: "2.0", method: "clear" })
   assert.deepEqual(batch[1], { jsonrpc: "2.0", method: "eval_lines", params: { lines: ["rent = $1200", "rent * 12", "+ 10%"] }, id: 7 })
   assert.deepEqual(batch[2], { jsonrpc: "2.0", method: "tokenize", params: { expr: "+ 10%" }, id: M.tokensId(7) })
+  assert.equal(batch.length, 3)
+  const withNotes = JSON.parse(M.buildRequest(8, ["a = 1", "", "b = 2", "c = 3"], "a", 2))
+  assert.deepEqual(withNotes.slice(3), [
+    { jsonrpc: "2.0", method: "tokenize", params: { expr: "b = 2" }, id: "tokens:8:2" },
+    { jsonrpc: "2.0", method: "tokenize", params: { expr: "c = 3" }, id: "tokens:8:3" },
+  ])
   assert.deepEqual(JSON.parse(M.ratesRequest()), { jsonrpc: "2.0", method: "reload_rates", id: "rates" })
 })
 
@@ -31,6 +37,16 @@ test("parseResponses returns every call in a batch; an old server's tokenize err
   assert.equal(replies[0].id, 3)
   assert.deepEqual(replies[1], { id: "tokens:3", error: "Method not found" })
   assert.deepEqual(M.parseResponses("not json"), [])
+})
+
+test("notesRows carries markup for tokenized rows, never for comments", () => {
+  const lines = ["# budget", "rent = $1200"]
+  const results = [{ type: "empty", display: "" }, { type: "currency", display: "$1200.00" }]
+  const tokens = { 0: [{ text: "# budget", token_type: "comment" }], 1: [{ text: "rent", token_type: "text" }] }
+  const rows = M.notesRows(lines, results, 6, tokens, false)
+  assert.equal(rows[0].markup, "")
+  assert.equal(rows[1].markup, "rent")
+  assert.equal(M.notesRows(lines, results, 6, undefined, false)[1].markup, "")
 })
 
 test("highlightMarkup colors known tokens, escapes markup, keeps spaces", () => {
@@ -61,11 +77,11 @@ test("notesRows keeps the last non-blank lines, hides errors, flags comments", (
     { type: "empty", display: "" }
   ]
   assert.deepEqual(M.notesRows(lines, results, 3), [
-    { text: "rent = $1200", result: "$1200.00", comment: false },
-    { text: "oops words", result: "", comment: false },
-    { text: "rent * 12", result: "$14400.00", comment: false }
+    { text: "rent = $1200", result: "$1200.00", comment: false, markup: "" },
+    { text: "oops words", result: "", comment: false, markup: "" },
+    { text: "rent * 12", result: "$14400.00", comment: false, markup: "" }
   ])
-  assert.deepEqual(M.notesRows(lines, results, 9)[0], { text: "# budget", result: "", comment: true })
+  assert.deepEqual(M.notesRows(lines, results, 9)[0], { text: "# budget", result: "", comment: true, markup: "" })
 })
 
 test("showsResult hides half-typed lines but keeps real errors", () => {

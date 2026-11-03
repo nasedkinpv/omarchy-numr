@@ -101,7 +101,7 @@ Item {
   function sendEval() {
     root.requestId += 1
     root.inflight = { id: root.requestId, lines: root.notesLines, expr: root.expr }
-    root.send(Model.buildRequest(root.requestId, root.notesLines, root.expr))
+    root.send(Model.buildRequest(root.requestId, root.notesLines, root.expr, root.notesLimit))
   }
 
   function send(frame) {
@@ -118,27 +118,30 @@ Item {
     server.running = true
   }
 
+  // One frame answers the whole batch: the evaluation, the typed line's
+  // tokens, and the tokens of every notes row that is shown.
   function handleResponse(data) {
     var sent = root.inflight
     if (!sent) return
     var replies = Model.parseResponses(data)
+    var evaluation = null
+    var noteTokens = {}
+    var linePrefix = Model.tokensId(sent.id) + ":"
     for (var i = 0; i < replies.length; i++) {
       var reply = replies[i]
-      if (reply.id === sent.id) root.applyResult(sent, reply)
-      else if (reply.id === Model.tokensId(sent.id)) {
-        root.tokens = { expr: sent.expr, list: !reply.error && Array.isArray(reply.result) ? reply.result : [] }
-      }
+      var list = !reply.error && Array.isArray(reply.result) ? reply.result : []
+      if (reply.id === sent.id) evaluation = reply
+      else if (reply.id === Model.tokensId(sent.id)) root.tokens = { expr: sent.expr, list: list }
+      else if (String(reply.id).indexOf(linePrefix) === 0) noteTokens[Number(String(reply.id).slice(linePrefix.length))] = list
     }
-  }
-
-  function applyResult(sent, reply) {
-    if (reply.error) {
-      root.result = { type: "error", display: reply.error, message: reply.error }
+    if (!evaluation) return
+    if (evaluation.error) {
+      root.result = { type: "error", display: evaluation.error, message: evaluation.error }
       return
     }
-    var values = Array.isArray(reply.result) ? reply.result : []
+    var values = Array.isArray(evaluation.result) ? evaluation.result : []
     var count = sent.lines.length
-    root.notesRows = Model.notesRows(sent.lines, values.slice(0, count), root.notesLimit)
+    root.notesRows = Model.notesRows(sent.lines, values.slice(0, count), root.notesLimit, noteTokens, root.lightCard)
     root.result = sent.expr.trim() ? (values[count] || null) : null
   }
 
@@ -514,8 +517,8 @@ Item {
 
               Text {
                 id: noteText
-                textFormat: Text.PlainText
-                text: noteRow.modelData.text
+                textFormat: noteRow.modelData.markup ? Text.StyledText : Text.PlainText
+                text: noteRow.modelData.markup || noteRow.modelData.text
                 anchors.left: parent.left
                 anchors.right: noteValue.left
                 anchors.rightMargin: Style.spacing.md
