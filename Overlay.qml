@@ -26,6 +26,9 @@ Item {
   property bool opened: false
   property string expr: ""
   property var result: null
+  // Syntax tokens for the typed line, tagged with the text they describe so a
+  // reply that arrives after the next keystroke never colors the wrong text.
+  property var tokens: ({ expr: null, list: [] })
   property var notesLines: []
   property var notesRows: []
   property int requestId: 0
@@ -47,6 +50,8 @@ Item {
   readonly property color border: Commons.Color.menu.border
   readonly property var borderSpec: Border.surfaceSpec("menu", "border", root.border, Math.max(1, Style.space(2)))
   readonly property color scrim: Commons.Color.menu.scrim
+  readonly property bool lightCard: root.background.hslLightness > 0.5
+  readonly property bool highlighted: root.expr !== "" && root.tokens.expr === root.expr && root.tokens.list.length > 0
   readonly property string fontFamily: Style.font.menuFamily
   readonly property int cardWidth: Math.min(Style.space(620), panel.width - Style.gapsOut * 2)
   readonly property int resultLineHeight: Math.round(Style.font.displayLarge * 1.25)
@@ -114,9 +119,19 @@ Item {
   }
 
   function handleResponse(data) {
-    var reply = Model.parseResponse(data)
-    if (!reply || !root.inflight || reply.id !== root.inflight.id) return
     var sent = root.inflight
+    if (!sent) return
+    var replies = Model.parseResponses(data)
+    for (var i = 0; i < replies.length; i++) {
+      var reply = replies[i]
+      if (reply.id === sent.id) root.applyResult(sent, reply)
+      else if (reply.id === Model.tokensId(sent.id)) {
+        root.tokens = { expr: sent.expr, list: !reply.error && Array.isArray(reply.result) ? reply.result : [] }
+      }
+    }
+  }
+
+  function applyResult(sent, reply) {
     if (reply.error) {
       root.result = { type: "error", display: reply.error, message: reply.error }
       return
@@ -413,8 +428,8 @@ Item {
 
           Text {
             id: inputText
-            textFormat: Text.PlainText
-            text: root.expr || "Calculate…"
+            textFormat: root.highlighted ? Text.StyledText : Text.PlainText
+            text: root.highlighted ? Model.highlightMarkup(root.tokens.list, root.lightCard) : (root.expr || "Calculate…")
             opacity: root.expr ? 1 : 0.45
             color: root.foreground
             font.family: root.fontFamily

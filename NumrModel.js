@@ -14,11 +14,19 @@ function request(method, params, id) {
 // document would in the numr TUI.
 // ponytail: the whole notes file is replayed on every keystroke; window it to
 // the last few thousand lines if someone keeps a novel in default.numr.
+// The tokenize call comes last so the notes' variables are already bound when
+// the typed line is tokenized. numr-cli before 0.9.2 answers it with "Method
+// not found", which the overlay treats as "no highlighting".
 function buildRequest(id, notesLines, expr) {
   return JSON.stringify([
     request("clear"),
-    request("eval_lines", { lines: notesLines.concat([expr]) }, id)
+    request("eval_lines", { lines: notesLines.concat([expr]) }, id),
+    request("tokenize", { expr: expr }, tokensId(id))
   ]) + "\n"
+}
+
+function tokensId(id) {
+  return "tokens:" + id
 }
 
 function ratesRequest() {
@@ -38,23 +46,28 @@ function ratesStale(cacheJson, nowSeconds) {
   }
 }
 
-// A response frame is one object or a batch array; only calls carry an id and
-// each frame we send holds exactly one call.
-function parseResponse(line) {
+// A response frame is one object or a batch array; only calls carry an id.
+function parseResponses(line) {
   var parsed
   try {
     parsed = JSON.parse(line)
   } catch (error) {
-    return null
+    return []
   }
   var items = Array.isArray(parsed) ? parsed : [parsed]
+  var replies = []
   for (var i = 0; i < items.length; i++) {
     var item = items[i]
     if (!item || item.id === undefined || item.id === null) continue
-    if (item.error) return { id: item.id, error: errorText(item.error) }
-    return { id: item.id, result: item.result }
+    replies.push(item.error ? { id: item.id, error: errorText(item.error) } : { id: item.id, result: item.result })
   }
-  return null
+  return replies
+}
+
+// The first call's reply, for frames that hold one call.
+function parseResponse(line) {
+  var replies = parseResponses(line)
+  return replies.length ? replies[0] : null
 }
 
 function errorText(error) {
@@ -93,6 +106,31 @@ function showsResult(value) {
   if (!value || value.type === "empty") return false
   if (value.type === "error") return String(value.message || "") !== "could not understand line"
   return true
+}
+
+// Styled-text markup for the input line, colored per token the way numr-web
+// does it; the palette is numr-web's, picked by the card's own brightness.
+var TOKEN_COLORS = {
+  dark: { number: "#b898f4", operator: "#f47898", keyword: "#f47898", variable: "#f4a860", unit: "#f4e878",
+          currency: "#f4c244", "function": "#f4c244", comment: "#7d7868", punctuation: "#a8a498" },
+  light: { number: "#6b4fd3", operator: "#c2185b", keyword: "#c2185b", variable: "#b35c0a", unit: "#8a6d00",
+           currency: "#946a00", "function": "#946a00", comment: "#8a857a", punctuation: "#6e6a5e" }
+}
+
+function escapeMarkup(text) {
+  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/ /g, "&nbsp;")
+}
+
+function highlightMarkup(tokens, lightCard) {
+  var colors = TOKEN_COLORS[lightCard ? "light" : "dark"]
+  var out = ""
+  for (var i = 0; i < tokens.length; i++) {
+    var token = tokens[i]
+    var text = escapeMarkup(token.text)
+    var color = colors[token.token_type]
+    out += color ? '<font color="' + color + '">' + text + "</font>" : text
+  }
+  return out
 }
 
 function resultText(value) {

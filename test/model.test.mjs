@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const source = readFileSync(new URL("../NumrModel.js", import.meta.url), "utf8")
-const M = new Function(source + "\nreturn { ratesStale, showsResult, buildRequest, ratesRequest, parseResponse, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload }")()
+const M = new Function(source + "\nreturn { ratesStale, showsResult, buildRequest, tokensId, ratesRequest, parseResponse, parseResponses, splitLines, notesRows, resultText, copyText, notesPath, fileLabel, parsePayload, highlightMarkup }")()
 
 test("buildRequest clears, then replays notes plus the typed line under one id", () => {
   const frame = M.buildRequest(7, ["rent = $1200", "rent * 12"], "+ 10%")
@@ -11,6 +11,7 @@ test("buildRequest clears, then replays notes plus the typed line under one id",
   const batch = JSON.parse(frame)
   assert.deepEqual(batch[0], { jsonrpc: "2.0", method: "clear" })
   assert.deepEqual(batch[1], { jsonrpc: "2.0", method: "eval_lines", params: { lines: ["rent = $1200", "rent * 12", "+ 10%"] }, id: 7 })
+  assert.deepEqual(batch[2], { jsonrpc: "2.0", method: "tokenize", params: { expr: "+ 10%" }, id: M.tokensId(7) })
   assert.deepEqual(JSON.parse(M.ratesRequest()), { jsonrpc: "2.0", method: "reload_rates", id: "rates" })
 })
 
@@ -22,6 +23,25 @@ test("parseResponse finds the call inside a batch and reports protocol errors as
   assert.deepEqual(bad, { id: 4, error: "Invalid params: missing lines" })
   assert.equal(M.parseResponse("not json"), null)
   assert.equal(M.parseResponse('{"jsonrpc":"2.0","result":{"message":"Cleared"}}'), null)
+})
+
+test("parseResponses returns every call in a batch; an old server's tokenize error is just one of them", () => {
+  const replies = M.parseResponses('[{"jsonrpc":"2.0","result":[{"type":"number","value":"4","display":"4"}],"id":3},{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"},"id":"tokens:3"}]')
+  assert.equal(replies.length, 2)
+  assert.equal(replies[0].id, 3)
+  assert.deepEqual(replies[1], { id: "tokens:3", error: "Method not found" })
+  assert.deepEqual(M.parseResponses("not json"), [])
+})
+
+test("highlightMarkup colors known tokens, escapes markup, keeps spaces", () => {
+  const tokens = [
+    { text: "a", token_type: "variable" }, { text: " ", token_type: "whitespace" },
+    { text: "<", token_type: "operator" }, { text: " ", token_type: "whitespace" },
+    { text: "2", token_type: "number" }, { text: " x&y", token_type: "text" },
+  ]
+  assert.equal(M.highlightMarkup(tokens, false),
+    '<font color="#f4a860">a</font>&nbsp;<font color="#f47898">&lt;</font>&nbsp;<font color="#b898f4">2</font>&nbsp;x&amp;y')
+  assert.equal(M.highlightMarkup([{ text: "5", token_type: "number" }], true), '<font color="#6b4fd3">5</font>')
 })
 
 test("splitLines drops only the trailing newline", () => {

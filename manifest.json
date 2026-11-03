@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.nasedkinpv.numr",
   "name": "numr",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Ben Nasedkin",
   "license": "MIT",
   "description": "Spotlight-style calculator powered by numr: type an expression, read the answer, copy it with Enter or keep it as a line in your numr notes.",

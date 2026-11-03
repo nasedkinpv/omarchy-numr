@@ -5,7 +5,8 @@ A Spotlight-style calculator for the Omarchy Quattro shell, powered by
 
 ![The numr overlay on the Omarchy desktop: the expression "20% of 150 + $30 in eur" with its result, €53.74](docs/hero.png)
 
-Press a key, type `20% of 150 + $30 in eur`, read the answer. Enter copies it
+Press a key, type `20% of 150 + $30 in eur`, read the answer, with numbers,
+units, currencies and variables colored as in the numr web editor. Enter copies it
 and closes the card. Shift+Enter keeps the line in your numr notes, the same
 `default.numr` document the `numr` TUI opens, so variables you define there
 work here and vice versa. Everything runs inside the long-lived `omarchy-shell`
@@ -15,7 +16,7 @@ started on first use, answers every keystroke over JSON-RPC.
 ## Requirements
 
 - Omarchy Quattro 4.0.3 or later (Hyprland session)
-- `numr-cli` 0.9 or later in `PATH`. If it is missing, the overlay offers to
+- `numr-cli` 0.9 or later in `PATH` (0.9.2 or later for syntax highlighting). If it is missing, the overlay offers to
   install the AUR package `numr-bin` through Omarchy's own installer on Enter
 - `wl-copy` from `wl-clipboard`, which Omarchy installs by default
 
