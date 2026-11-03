@@ -186,7 +186,7 @@ Item {
   // for the password there, "Done" at the end. Nothing runs without the
   // keypress, and the next open re-checks the binary.
   function installNumr() {
-    Util.execArgv(["omarchy-launch-floating-terminal-with-presentation", "omarchy-pkg-aur-add numr-bin"])
+    Util.execArgv(["omarchy-launch-floating-terminal-with-presentation", "omarchy-pkg-aur-add numr"])
     root.dismiss()
   }
 
@@ -558,7 +558,7 @@ Item {
           topPadding: Style.spacing.md
           textFormat: Text.PlainText
           text: root.status
-            || (root.serverBroken ? "numr is not installed yet  ·  Enter installs it with Omarchy (AUR numr-bin)"
+            || (root.serverBroken ? "numr is not installed yet  ·  Enter installs it with Omarchy (AUR numr)"
                                   : "Enter copy  ·  Shift+Enter keep as note  ·  Ctrl+O notes  ·  Esc")
           elide: Text.ElideRight
           color: root.status ? root.accent : (root.serverBroken ? Commons.Color.urgent : root.foreground)

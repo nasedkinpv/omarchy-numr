@@ -17,7 +17,7 @@ started on first use, answers every keystroke over JSON-RPC.
 
 - Omarchy Quattro 4.0.3 or later (Hyprland session)
 - `numr-cli` 0.9 or later in `PATH` (0.9.2 or later for syntax highlighting). If it is missing, the overlay offers to
-  install the AUR package `numr-bin` through Omarchy's own installer on Enter
+  install the AUR package `numr` through Omarchy's own installer on Enter
 - `wl-copy` from `wl-clipboard`, which Omarchy installs by default
 
 No sudo or pkexec is required. The plugin never touches system files.
@@ -116,7 +116,7 @@ the document: it sees every variable and can continue the previous result
   calculations from the process list.
 - Runs `numr-cli`, `wl-copy`, and `omarchy-launch-or-focus-tui numr` from your
   session. When `numr-cli` is missing, Enter opens Omarchy's floating install
-  terminal for `numr-bin`; nothing is installed without that keypress. Network
+  terminal for `numr`; nothing is installed without that keypress. Network
   access happens only inside `numr-cli`, and only to fetch exchange rates: when
   you press `Ctrl+R`, or when the calculator opens and the cache is older than
   an hour (numr's own expiry, after which it would silently fall back to built-
