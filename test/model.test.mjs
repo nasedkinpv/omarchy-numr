@@ -60,6 +60,16 @@ test("highlightMarkup colors known tokens, escapes markup, keeps spaces", () => 
   assert.equal(M.highlightMarkup([{ text: "5", token_type: "number" }], true), '<font color="#6b4fd3">5</font>')
 })
 
+test("highlightMarkup with text colors only the matching prefix of stale tokens", () => {
+  const tokens = [{ text: "2", token_type: "number" }, { text: " ", token_type: "whitespace" }, { text: "km", token_type: "unit" }]
+  const num = '<font color="#b898f4">2</font>'
+  assert.equal(M.highlightMarkup(tokens, false, "2 km in"), num + '&nbsp;<font color="#f4e878">km</font>&nbsp;in')
+  assert.equal(M.highlightMarkup(tokens, false, "2 k"), num + '&nbsp;<font color="#f4e878">k</font>')
+  assert.equal(M.highlightMarkup(tokens, false, "2 miles"), num + "&nbsp;miles")
+  assert.equal(M.highlightMarkup(tokens, false, "5"), "5")
+  assert.equal(M.highlightMarkup(tokens, false, "2 km"), M.highlightMarkup(tokens, false))
+})
+
 test("splitLines drops only the trailing newline", () => {
   assert.deepEqual(M.splitLines("a\nb\n"), ["a", "b"])
   assert.deepEqual(M.splitLines("a\r\n\r\nb"), ["a", "", "b"])

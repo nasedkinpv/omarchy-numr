@@ -147,15 +147,30 @@ function escapeMarkup(text) {
   return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/ /g, "&nbsp;")
 }
 
-function highlightMarkup(tokens, lightCard) {
+// With `text` given, the tokens may describe an older version of the line:
+// they color the prefix they still match and the rest stays plain, so a
+// keystroke never flashes the whole line white while the server catches up.
+// The overlay only ever edits the end of the line, so the prefix is the line
+// minus what was just typed or deleted.
+function highlightMarkup(tokens, lightCard, text) {
   var colors = TOKEN_COLORS[lightCard ? "light" : "dark"]
   var out = ""
+  var pos = 0
   for (var i = 0; i < tokens.length; i++) {
     var token = tokens[i]
-    var text = escapeMarkup(token.text)
+    var piece = token.text
+    if (text !== undefined) {
+      var k = 0
+      while (k < piece.length && pos + k < text.length && piece[k] === text[pos + k]) k++
+      piece = piece.slice(0, k)
+      if (!piece) break
+      pos += piece.length
+    }
     var color = colors[token.token_type]
-    out += color ? '<font color="' + color + '">' + text + "</font>" : text
+    out += color ? '<font color="' + color + '">' + escapeMarkup(piece) + "</font>" : escapeMarkup(piece)
+    if (text !== undefined && piece.length < token.text.length) break
   }
+  if (text !== undefined && pos < text.length) out += escapeMarkup(text.slice(pos))
   return out
 }
 
