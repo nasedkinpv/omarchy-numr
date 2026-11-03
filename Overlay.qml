@@ -182,7 +182,7 @@ Item {
     root.setExpr("")
   }
 
-  // Omarchy's own installer flow: a floating terminal with the logo, yay asks
+  // Omarchy's own installer flow: a floating terminal with the logo, the package manager asks
   // for the password there, "Done" at the end. Nothing runs without the
   // keypress, and the next open re-checks the binary.
   function installNumr() {
